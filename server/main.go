@@ -28,8 +28,12 @@ func processCommand(command common.Command, myorderedmap *mymap.OrderedSet, file
 	case "getItem":
 		go func(key string) {
 			value := myorderedmap.GetElement(key)
+			// I'm not sure I'm required to use lock here but file writes are not
+			// inherently thread safe (from golang standard and internall from linux syscall)
+			// so we may want to use lock to avoid let's say data corruptions when writing.
+			// from different go routines in golang.
 			if _, err := fmt.Fprintf(file, "%s\n", value); err != nil {
-				fmt.Errorf("Couldn't get item from the map: ", err)
+				fmt.Errorf("Couldn't get item from the map: %s", err.Error())
 			}
 		}(command.Values[0])
 	case "getAllItems":
@@ -37,7 +41,7 @@ func processCommand(command common.Command, myorderedmap *mymap.OrderedSet, file
 			values := myorderedmap.GetAllElements()
 			for _, value := range values {
 				if _, err := fmt.Fprintf(file, "%s\n", value); err != nil {
-					fmt.Errorf("Couldn't get elements from the map: %s", err)
+					fmt.Errorf("Couldn't get elements from the map: %s", err.Error())
 				}
 			}
 		}()
@@ -46,6 +50,10 @@ func processCommand(command common.Command, myorderedmap *mymap.OrderedSet, file
 	return nil
 }
 
+// Server and client implementation is pretty straightforward. They simply parse command line
+// parameters and connect to queue for receiving and sending commands correspondingly. We could also
+// define interface and mock (probably with mockify package) those interfaces and have functional tests
+// but as it's not too complicated is shouldn't be necessary.
 func main() {
 	if len(os.Args) < 3 {
 		log.Fatalf("Usage: %s <RabbitMQ URL> <file path>", os.Args[0])
@@ -116,7 +124,7 @@ func main() {
 			var command common.Command
 			err := json.Unmarshal(c.Body, &command)
 			if err != nil {
-				fmt.Errorf("Error unmarshalling command:", err)
+				fmt.Errorf("Error unmarshalling command: %s", err.Error())
 			}
 
 			// run command in parallel

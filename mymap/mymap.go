@@ -9,7 +9,11 @@ type Node struct {
 	prev, next *Node
 }
 
-// we implement thread safety with RWMutex where we simply allow reads to be simultaneous
+// Implementation is using simple hash map (unordered_map in c++) implementation for O(1)
+// operations. To maintain the order of the insertion we use double linked list to traverse
+// upon requesting all the elements from the map.
+
+// We implement thread safety with RWMutex where we simply allow reads to be simultaneous
 // while inserting/updating exclusive. This way we can have multiple getItem and getAllItems
 // commands running simultaneiosly while addItem and deleteItem running in exclusive lock.
 // We could also further optimise thread safety functionality by simply locking specific
@@ -21,62 +25,57 @@ type OrderedSet struct {
 }
 
 func NewOrderedSet() *OrderedSet {
-	return &OrderedSet{
+	orderedSet := &OrderedSet{
 		elementsMap: make(map[string]*Node),
 		head:        &Node{},
 		tail:        &Node{},
 	}
+
+	// connect head and tail
+	orderedSet.head.next = orderedSet.tail
+	orderedSet.tail.prev = orderedSet.head
+
+	return orderedSet
 }
 
 func (s *OrderedSet) insertAfter(prev *Node, value string) *Node {
-	newNode := &Node{value: value, prev: prev, next: prev.next}
-	prev.next = newNode
-	if newNode.next != nil {
-		newNode.next.prev = newNode
-	}
-	return newNode
+	prev.next = &Node{value: value, prev: prev, next: prev.next}
+	prev.next.next.prev = prev.next
+	return prev.next
 }
 
 func (s *OrderedSet) InsertElement(key string, value string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.elementsMap[value]; ok {
-		return // Element already exists
-	}
+
 	if len(s.elementsMap) == 0 {
-		s.head.next = s.insertAfter(s.head, value)
-		s.tail.prev = s.head.next
-		s.elementsMap[key] = s.head.next
-	} else {
-		// if exists - update
-		if _, ok := s.elementsMap[key]; ok {
-			s.elementsMap[key].value = value
-			return
-		}
-		newNode := s.insertAfter(s.tail.prev, value)
-		s.tail.prev = newNode
-		s.elementsMap[key] = newNode
+		s.elementsMap[key] = s.insertAfter(s.head, value)
+		return
 	}
+
+	// if exists - update
+	if node, ok := s.elementsMap[key]; ok {
+		node.value = value
+		return
+	}
+
+	s.elementsMap[key] = s.insertAfter(s.tail.prev, value)
 }
 
-func (s *OrderedSet) RemoveElement(value string) {
+func (s *OrderedSet) RemoveElement(key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if node, ok := s.elementsMap[value]; ok {
+	if node, ok := s.elementsMap[key]; ok {
 		node.prev.next = node.next
-		if node.next != nil {
-			node.next.prev = node.prev
-		} else {
-			s.tail.prev = node.prev
-		}
-		delete(s.elementsMap, value)
+		node.next.prev = node.prev
+		delete(s.elementsMap, key)
 	}
 }
 
-func (s *OrderedSet) GetElement(value string) string {
+func (s *OrderedSet) GetElement(key string) string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	if node, ok := s.elementsMap[value]; ok {
+	if node, ok := s.elementsMap[key]; ok {
 		return node.value
 	}
 	return ""
@@ -87,7 +86,7 @@ func (s *OrderedSet) GetAllElements() []string {
 	defer s.mu.RUnlock()
 	elements := make([]string, 0, len(s.elementsMap))
 	current := s.head.next
-	for current != nil && current != s.tail {
+	for current != s.tail {
 		elements = append(elements, current.value)
 		current = current.next
 	}

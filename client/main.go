@@ -13,12 +13,6 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func failOnError(err error, msg string) {
-	if err != nil {
-		log.Fatalf("%s: %s", msg, err)
-	}
-}
-
 func validateFilePath(filePath string) error {
 	// Check if the file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
