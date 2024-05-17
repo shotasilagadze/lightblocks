@@ -1,0 +1,18 @@
+[
+    {"command": "addItem", "values": ["item1", "item1_value"]},
+    {"command": "deleteItem", "values": ["item1"]},
+    {"command": "addItem", "values": ["item4", "item4_value"]},
+    {"command": "addItem", "values": ["item5", "item5_value"]},
+    {"command": "addItem", "values": ["item6", "item6_value"]},
+    {"command": "addItem", "values": ["item2", "item2_value"]},
+    {"command": "addItem", "values": ["item3", "item3_value"]},
+    {"command": "getAllItems", "values": []},
+    {"command": "getItem", "values": ["item2"]},
+    {"command": "deleteItem", "values": ["item5"]},
+    {"command": "getItem", "values": ["item3"]},
+    {"command": "addItem", "values": ["item7", "item7_value"]},
+    {"command": "deleteItem", "values": ["item6"]},
+    {"command": "addItem", "values": ["item8", "item8_value"]},
+    {"command": "getItem", "values": ["item4"]},
+    {"command": "getAllItems", "values": []}
+]
